@@ -24,6 +24,9 @@ Both these actions are equivalent to clicking the `restart` / `redeploy` options
 
     - Input the schedule configuration string into the `SCHEDULE_1` variable.
 
+        - More schedules can be added later by using the bookmarklet and by adding the resulting schedule configuration string to a `SCHEDULE_2`
+ variable, and so on.
+
     - Input your Token into the `RAILWAY_ACCOUNT_TOKEN` variable.
 
     - click "Deploy"
