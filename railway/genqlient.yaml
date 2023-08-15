@@ -1,0 +1,11 @@
+schema: schema.graphql
+operations:
+- railway.graphql
+generated: generated.go
+package: railway
+context_type: "-"
+use_struct_references: true
+
+bindings:
+  DateTime:
+    type: time.Time
