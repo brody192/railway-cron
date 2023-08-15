@@ -16,6 +16,18 @@ Both these actions are equivalent to clicking the `restart` / `redeploy` options
 
     - Once the bookmarklet has been added to your bookmark bar, open your Railway project and desired service, click the bookmarklet, a popup will ask you to input your Cron expression and action type, then you will be forwarded to a page that contains your schedule config, copy this long string and save it somewhere for later use.
 
+        ```
+        Field name   | Mandatory? | Allowed values  | Allowed special characters
+        ----------   | ---------- | --------------  | --------------------------
+        Minutes      | Yes        | 0-59            | * / , -
+        Hours        | Yes        | 0-23            | * / , -
+        Day of month | Yes        | 1-31            | * / , - ?
+        Month        | Yes        | 1-12 or JAN-DEC | * / , -
+        Day of week  | Yes        | 0-6 or SUN-SAT  | * / , - ?
+        ```
+    
+        Examples for some Cron Expressions can be found in the [Railway documentation](https://docs.railway.app/reference/cron-jobs#examples)
+
 - **Generate a Railway account Token**
 
     - Go to the [Tokens page](https://railway.app/account/tokens) in your Railway account, click the name field and provide an accurate name for what the token will be used for, a name like "Cron Schedular" would suffice, click "Create", then save this token for later use.
