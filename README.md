@@ -22,6 +22,8 @@ Both these actions are equivalent to clicking the `restart` / `redeploy` options
 
 - Deploy this template
 
+    [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/fwH-l3?referralCode=ySCnWl)
+
     - Input the schedule configuration string into the `SCHEDULE_1` variable.
 
         - More schedules can be added later by using the bookmarklet and by adding the resulting schedule configuration string to a `SCHEDULE_2`
