@@ -28,9 +28,11 @@ Both these actions are equivalent to clicking the `restart` / `redeploy` options
     
         Examples for some Cron Expressions can be found in the [Railway documentation](https://docs.railway.app/reference/cron-jobs#examples)
 
-- **Generate a Railway account Token**
+- **Generate a Railway Account Token**
 
-    - Go to the [Tokens page](https://railway.app/account/tokens) in your Railway account, click the name field and provide an accurate name for what the token will be used for, a name like "Cron Schedular" would suffice, click "Create", then save this token for later use.
+    - Go to the [Tokens page](https://railway.app/account/tokens) in your Railway Account, click the name field and provide an accurate name for what the token will be used for, a name like "Cron Schedular" would suffice, click "Create", then save this token for later use.
+    
+        **Note: this must be an Account Token, a project Token will not work**
 
 - Deploy this template
 
@@ -41,7 +43,7 @@ Both these actions are equivalent to clicking the `restart` / `redeploy` options
         - More schedules can be added later by using the bookmarklet and by adding the resulting schedule configuration string to a `SCHEDULE_2`
  variable, and so on.
 
-    - Input your Token into the `RAILWAY_ACCOUNT_TOKEN` variable.
+    - Input your **Account** Token into the `RAILWAY_ACCOUNT_TOKEN` variable.
 
     - click "Deploy"
 
