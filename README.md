@@ -12,7 +12,7 @@ Both these actions are equivalent to clicking the `restart` / `redeploy` options
 
 - **Get at least one Cron schedule prepared**
 
-    - This is made easy with a [bookmarklet](https://www.freecodecamp.org/news/what-are-bookmarklets/). The pre-made bookmarklet that will help construct our schedule can be added to your bookmark bar via [this website](https://brody192.github.io/cron-bookmarklet/) ([bookmarklet source code](https://brody192.github.io/cron-bookmarklet/bookmark.js))
+    - This is made easy with a [bookmarklet](https://bookmarklets.org/what-is-a-bookmarklet/). The pre-made bookmarklet that will help construct our schedule can be added to your bookmark bar via [this website](https://bookmarklet.up.railway.app/cron-config/)
 
     - Once the bookmarklet has been added to your bookmark bar, open your Railway project and desired service, click the bookmarklet, a popup will ask you to input your Cron expression and action type, then you will be forwarded to a page that contains your schedule config, copy this long string and save it somewhere for later use.
 
