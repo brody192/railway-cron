@@ -24,3 +24,10 @@ mutation DeploymentRedeploy($id: String!) {
 mutation DeploymentRestart($id: String!) {
     deploymentRestart(id: $id)
 }
+
+query Me() {
+    me() {
+        name
+        email
+    }
+}

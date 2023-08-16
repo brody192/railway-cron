@@ -2,7 +2,7 @@ package railway
 
 import (
 	"fmt"
-	"main/schedule"
+	"main/internal/schedule"
 	"net/http"
 
 	_ "github.com/Khan/genqlient/generate"

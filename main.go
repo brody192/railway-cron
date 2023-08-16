@@ -1,9 +1,10 @@
 package main
 
 import (
-	"main/logger"
-	"main/railway"
-	"main/schedule"
+	"main/internal/logger"
+	"main/internal/railway"
+	"main/internal/schedule"
+	"main/internal/tools"
 	"os"
 	"time"
 
@@ -12,15 +13,17 @@ import (
 )
 
 func main() {
+	// get the account token from the environment, fail if missing
 	railwayToken := os.Getenv("RAILWAY_ACCOUNT_TOKEN")
 	if railwayToken == "" {
 		logger.Stderr.Error("missing 'RAILWAY_ACCOUNT_TOKEN' environment variable")
 		os.Exit(1)
 	}
 
+	// parse schedule configuration strings from the environment with the given prefix
 	schedules, err := schedule.ParseFromEnv("SCHEDULE_")
 	if err != nil {
-		logger.Stderr.Error("error parsing schedules from environment: " + err.Error())
+		logger.Stderr.Error("error parsing schedules from environment: " + tools.ErrStr(err))
 		os.Exit(1)
 	}
 
@@ -28,6 +31,7 @@ func main() {
 		slog.Int("found_schedules", len(schedules)),
 	)
 
+	// print schedules for viewing purposes
 	for _, schedule := range schedules {
 		logger.Stdout.Info("found schedule",
 			slog.String("service_id", schedule.ServiceID),
@@ -38,12 +42,24 @@ func main() {
 
 	railwayClient := railway.NewAuthedClient(railwayToken)
 
+	// check if we have account level authorization, if not, fail early
+	meResp, err := railway.Me(railwayClient)
+	if err != nil {
+		logger.Stderr.Error("failed retrieving user information: " + tools.ErrStr(err))
+		os.Exit(1)
+	}
+
+	logger.Stdout.Info("user information retrieved successfully", slog.String("username", meResp.Me.Name), slog.String("email", meResp.Me.Email))
+
+	// cron job function that will be executed on the set schedules
 	cronTask := func(jobDetails schedule.Schedule) {
+		// get the friendly service name, looking at just the service id can get very confusing
 		friendlyName, err := railwayClient.GetFriendlyName(jobDetails.ServiceID)
 		if err != nil {
-			logger.Stderr.Warn("error retrieving friendly service name: " + err.Error())
+			logger.Stderr.Warn("error retrieving friendly service name: " + tools.ErrStr(err))
 		}
 
+		// default slog attributes
 		slogAttr := []any{
 			slog.String("service_name", friendlyName),
 			slog.String("action", string(jobDetails.Action)),
@@ -53,23 +69,25 @@ func main() {
 
 		logger.Stdout.Info("starting cron job", slogAttr...)
 
+		// retrieve latest active or complete deployment from service
 		latestDeploymentID, err := railwayClient.GetLatestDeploymentID(jobDetails)
 		if err != nil {
-			logger.Stderr.Warn(err.Error(), slogAttr...)
+			logger.Stderr.Error(tools.ErrStr(err), slogAttr...)
 			return
 		}
 
+		// run action depending on the action type
 		switch jobDetails.Action {
 		case schedule.ActionRedeploy:
 			_, err = railway.DeploymentRedeploy(railwayClient, latestDeploymentID)
 			if err != nil {
-				logger.StderrWithSource.Error(err.Error(), slogAttr...)
+				logger.StderrWithSource.Error(tools.ErrStr(err), slogAttr...)
 				return
 			}
 		case schedule.ActionRestart:
 			_, err = railway.DeploymentRestart(railwayClient, latestDeploymentID)
 			if err != nil {
-				logger.StderrWithSource.Error(err.Error(), slogAttr...)
+				logger.StderrWithSource.Error(tools.ErrStr(err), slogAttr...)
 				return
 			}
 		default:
@@ -80,24 +98,31 @@ func main() {
 		logger.Stdout.Info("cron job completed successfully", slogAttr...)
 	}
 
+	// create a new cron schedular in utc time
 	scheduler := gocron.NewScheduler(time.UTC)
 
+	// register all scheduled jobs
 	for _, job := range schedules {
 		_, err := scheduler.Cron(job.Expression).Do(cronTask, job)
 		if err != nil {
-			logger.StderrWithSource.Error(err.Error())
+			logger.StderrWithSource.Error(tools.ErrStr(err))
 			return
 		}
 	}
 
-	numJobs := len(scheduler.Jobs())
+	scheduledJobs, registeredJobs := len(schedules), len(scheduler.Jobs())
 
-	if numJobs == 0 {
-		logger.StderrWithSource.Warn("no cron jobs where registered")
+	// check if we registered the same amount of jobs as there was schedules
+	if scheduledJobs != registeredJobs {
+		logger.StderrWithSource.Warn("cron jobs registered not equal to number of parsed schedules",
+			slog.Int("scheduled_jobs", scheduledJobs),
+			slog.Int("registered_jobs", registeredJobs),
+		)
 		os.Exit(1)
 	}
 
-	logger.Stdout.Info("starting scheduler", slog.Int("num_jobs", numJobs))
+	logger.Stdout.Info("starting scheduler", slog.Int("registered_jobs", registeredJobs))
 
+	// start the scheduler in blocking mode
 	scheduler.StartBlocking()
 }

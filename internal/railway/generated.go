@@ -131,6 +131,27 @@ func (v *DeploymentsResponse) GetDeployments() *DeploymentsDeploymentsQueryDeplo
 	return v.Deployments
 }
 
+// MeMeUser includes the requested fields of the GraphQL type User.
+type MeMeUser struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// GetName returns MeMeUser.Name, and is useful for accessing the field via an interface.
+func (v *MeMeUser) GetName() string { return v.Name }
+
+// GetEmail returns MeMeUser.Email, and is useful for accessing the field via an interface.
+func (v *MeMeUser) GetEmail() string { return v.Email }
+
+// MeResponse is returned by Me on success.
+type MeResponse struct {
+	// Gets the authenticated user.
+	Me *MeMeUser `json:"me"`
+}
+
+// GetMe returns MeResponse.Me, and is useful for accessing the field via an interface.
+func (v *MeResponse) GetMe() *MeMeUser { return v.Me }
+
 // ServiceResponse is returned by Service on success.
 type ServiceResponse struct {
 	// Get a service by ID
@@ -280,6 +301,37 @@ func Deployments(
 	var err error
 
 	var data DeploymentsResponse
+	resp := &graphql.Response{Data: &data}
+
+	err = client.MakeRequest(
+		nil,
+		req,
+		resp,
+	)
+
+	return &data, err
+}
+
+// The query or mutation executed by Me.
+const Me_Operation = `
+query Me {
+	me {
+		name
+		email
+	}
+}
+`
+
+func Me(
+	client graphql.Client,
+) (*MeResponse, error) {
+	req := &graphql.Request{
+		OpName: "Me",
+		Query:  Me_Operation,
+	}
+	var err error
+
+	var data MeResponse
 	resp := &graphql.Response{Data: &data}
 
 	err = client.MakeRequest(
