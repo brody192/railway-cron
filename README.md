@@ -1,5 +1,7 @@
 # Railway Cron (but better?)
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/fwH-l3?referralCode=ySCnWl)
+
 This Service will help you restart (or redeploy) your selected service on a Cron schedule, this differs from the native cron feature in two ways:
 
 - **The `restart` action:** Can trigger a restart of a service, instead of a re-running the image in a new deployment.
