@@ -152,6 +152,27 @@ type MeResponse struct {
 // GetMe returns MeResponse.Me, and is useful for accessing the field via an interface.
 func (v *MeResponse) GetMe() *MeMeUser { return v.Me }
 
+// ProjectProject includes the requested fields of the GraphQL type Project.
+type ProjectProject struct {
+	Name string `json:"name"`
+	Id   string `json:"id"`
+}
+
+// GetName returns ProjectProject.Name, and is useful for accessing the field via an interface.
+func (v *ProjectProject) GetName() string { return v.Name }
+
+// GetId returns ProjectProject.Id, and is useful for accessing the field via an interface.
+func (v *ProjectProject) GetId() string { return v.Id }
+
+// ProjectResponse is returned by Project on success.
+type ProjectResponse struct {
+	// Get a project by ID
+	Project *ProjectProject `json:"project"`
+}
+
+// GetProject returns ProjectResponse.Project, and is useful for accessing the field via an interface.
+func (v *ProjectResponse) GetProject() *ProjectProject { return v.Project }
+
 // ServiceResponse is returned by Service on success.
 type ServiceResponse struct {
 	// Get a service by ID
@@ -196,6 +217,14 @@ func (v *__DeploymentsInput) GetFirst() int { return v.First }
 
 // GetInput returns __DeploymentsInput.Input, and is useful for accessing the field via an interface.
 func (v *__DeploymentsInput) GetInput() *DeploymentListInput { return v.Input }
+
+// __ProjectInput is used internally by genqlient
+type __ProjectInput struct {
+	Id string `json:"id"`
+}
+
+// GetId returns __ProjectInput.Id, and is useful for accessing the field via an interface.
+func (v *__ProjectInput) GetId() string { return v.Id }
 
 // __ServiceInput is used internally by genqlient
 type __ServiceInput struct {
@@ -332,6 +361,41 @@ func Me(
 	var err error
 
 	var data MeResponse
+	resp := &graphql.Response{Data: &data}
+
+	err = client.MakeRequest(
+		nil,
+		req,
+		resp,
+	)
+
+	return &data, err
+}
+
+// The query or mutation executed by Project.
+const Project_Operation = `
+query Project ($id: String!) {
+	project(id: $id) {
+		name
+		id
+	}
+}
+`
+
+func Project(
+	client graphql.Client,
+	id string,
+) (*ProjectResponse, error) {
+	req := &graphql.Request{
+		OpName: "Project",
+		Query:  Project_Operation,
+		Variables: &__ProjectInput{
+			Id: id,
+		},
+	}
+	var err error
+
+	var data ProjectResponse
 	resp := &graphql.Response{Data: &data}
 
 	err = client.MakeRequest(

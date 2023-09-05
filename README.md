@@ -8,11 +8,18 @@ This Service will help you restart (or redeploy) your selected service on a Cron
 
 Both these actions are equivalent to clicking the `restart` / `redeploy` options in the deployments 3-Dot menu but on the desired Cron schedule.
 
+**Caveats:** Since this template uses one token for all the Railway API calls made, the token provided would need to have access to all the projects in the defined schedules.
+eg, If you use a token for team 'A' all the projects in the schedules would need to be within team 'A'.
+
+If you used a personal account token, all the projects in the schedules would need to be under your personal account.
+
+It doesn't matter if you deploy this template to the team or personal account, as long as you provide the correct token.
+
 ## How to Setup
 
 - **Get at least one Cron schedule prepared**
 
-    - This is made easy with a [bookmarklet](https://bookmarklets.org/what-is-a-bookmarklet/). The pre-made bookmarklet that will help construct our schedule can be added to your bookmark bar via [this website](https://bookmarklet.up.railway.app/cron-config/)
+    - This is made easy with a [bookmarklet](https://bookmarklets.org/what-is-a-bookmarklet/). The pre-made bookmarklet that will help construct our schedule can be added to your bookmark bar via [this website](https://bookmarklets.up.railway.app/cron-config/)
 
     - Once the bookmarklet has been added to your bookmark bar, open your Railway project and desired service, and click the bookmarklet, a popup will ask you to input your Cron expression and action type, then you will be forwarded to a page that contains your schedule config, copy this long string and save it somewhere for later use.
 

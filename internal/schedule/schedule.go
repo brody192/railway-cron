@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/schema"
 	"github.com/robfig/cron/v3"
 )
@@ -68,6 +69,18 @@ func ParseFromEnv(EnvPrefix string) ([]Schedule, error) {
 
 		if _, err := cronParser.Parse(schedule.Expression); err != nil {
 			return nil, err
+		}
+
+		if _, err := uuid.Parse(schedule.ProjectID); err != nil {
+			return nil, fmt.Errorf("projectID is not a valid UUID: %s", schedule.ProjectID)
+		}
+
+		if _, err := uuid.Parse(schedule.EnvironmentID); err != nil {
+			return nil, fmt.Errorf("environmentID is not a valid UUID: %s", schedule.EnvironmentID)
+		}
+
+		if _, err := uuid.Parse(schedule.ServiceID); err != nil {
+			return nil, fmt.Errorf("serviceID is not a valid UUID: %s", schedule.ServiceID)
 		}
 
 		schedules = append(schedules, schedule)

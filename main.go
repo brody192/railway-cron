@@ -23,7 +23,7 @@ func main() {
 	// parse schedule configuration strings from the environment with the given prefix
 	schedules, err := schedule.ParseFromEnv("SCHEDULE_")
 	if err != nil {
-		logger.Stderr.Error("error parsing schedules from environment: " + tools.ErrStr(err))
+		logger.Stderr.Error("error parsing schedules from environment", slog.String("err", tools.ErrStr(err)))
 		os.Exit(1)
 	}
 
@@ -31,32 +31,32 @@ func main() {
 		slog.Int("found_schedules", len(schedules)),
 	)
 
+	railwayClient := railway.NewAuthedClient(railwayToken)
+
 	// print schedules for viewing purposes
 	for _, schedule := range schedules {
+		project, err := railway.Project(railwayClient, schedule.ProjectID)
+		if err != nil {
+			logger.Stderr.Error("failed retrieving project information", slog.String("err", tools.ErrStr(err)), slog.String("project_id", schedule.ProjectID))
+			os.Exit(1)
+		}
+
 		logger.Stdout.Info("found schedule",
 			slog.String("service_id", schedule.ServiceID),
+			slog.String("project_name", project.Project.Name),
 			slog.String("action", string(schedule.Action)),
 			slog.String("expression", schedule.Expression),
 		)
 	}
 
-	railwayClient := railway.NewAuthedClient(railwayToken)
-
-	// check if we have account level authorization, if not, fail early
-	meResp, err := railway.Me(railwayClient)
-	if err != nil {
-		logger.Stderr.Error("failed retrieving user information: " + tools.ErrStr(err))
-		os.Exit(1)
-	}
-
-	logger.Stdout.Info("user information retrieved successfully", slog.String("username", meResp.Me.Name), slog.String("email", meResp.Me.Email))
+	logger.Stdout.Info("access to all projects defined in the schedule(s) confirmed")
 
 	// cron job function that will be executed on the set schedules
 	cronTask := func(jobDetails schedule.Schedule) {
 		// get the friendly service name, looking at just the service id can get very confusing
 		friendlyName, err := railwayClient.GetFriendlyName(jobDetails.ServiceID)
 		if err != nil {
-			logger.Stderr.Warn("error retrieving friendly service name: " + tools.ErrStr(err))
+			logger.Stderr.Warn("error retrieving friendly service name", slog.String("err", tools.ErrStr(err)))
 		}
 
 		// default slog attributes
@@ -72,7 +72,8 @@ func main() {
 		// retrieve latest active or complete deployment from service
 		latestDeploymentID, err := railwayClient.GetLatestDeploymentID(jobDetails)
 		if err != nil {
-			logger.Stderr.Error(tools.ErrStr(err), slogAttr...)
+			slogAttr = append(slogAttr, slog.String("err", tools.ErrStr(err)))
+			logger.Stderr.Error("error getting latest deployment for given service", slogAttr...)
 			return
 		}
 
@@ -81,17 +82,20 @@ func main() {
 		case schedule.ActionRedeploy:
 			_, err = railway.DeploymentRedeploy(railwayClient, latestDeploymentID)
 			if err != nil {
-				logger.StderrWithSource.Error(tools.ErrStr(err), slogAttr...)
+				slogAttr = append(slogAttr, slog.String("err", tools.ErrStr(err)))
+				logger.StderrWithSource.Error("error redeploying the given service", slogAttr...)
 				return
 			}
 		case schedule.ActionRestart:
 			_, err = railway.DeploymentRestart(railwayClient, latestDeploymentID)
 			if err != nil {
-				logger.StderrWithSource.Error(tools.ErrStr(err), slogAttr...)
+				slogAttr = append(slogAttr, slog.String("err", tools.ErrStr(err)))
+				logger.StderrWithSource.Error("error restarting the given service", slogAttr...)
 				return
 			}
 		default:
-			logger.StderrWithSource.Error("invalid action: "+string(jobDetails.Action), slogAttr...)
+			slogAttr = append(slogAttr, slog.String("action", string(jobDetails.Action)))
+			logger.StderrWithSource.Error("invalid action", slogAttr...)
 			return
 		}
 
@@ -105,7 +109,8 @@ func main() {
 	for _, job := range schedules {
 		_, err := scheduler.Cron(job.Expression).Do(cronTask, job)
 		if err != nil {
-			logger.StderrWithSource.Error(tools.ErrStr(err))
+
+			logger.StderrWithSource.Error("error registering schedule with cron", slog.String("err", tools.ErrStr(err)))
 			return
 		}
 	}
