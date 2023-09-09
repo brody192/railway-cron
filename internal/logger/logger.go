@@ -7,16 +7,30 @@ import (
 )
 
 var (
-	stdoutHandler = slog.NewTextHandler(os.Stdout, nil)
+	// at this time Railway only supports JSON log messages if they have a "message" key
+	replacer = func(_ []string, a slog.Attr) slog.Attr {
+		if a.Key == "msg" {
+			a.Key = "message"
+		}
+		return a
+	}
+
+	stdoutHandler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		ReplaceAttr: replacer,
+	})
 	//enable source
-	stdoutHandlerWithSource = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
+	stdoutHandlerWithSource = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource:   true,
+		ReplaceAttr: replacer,
 	})
 
-	stderrHandler = slog.NewTextHandler(os.Stderr, nil)
+	stderrHandler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		ReplaceAttr: replacer,
+	})
 	// enable source
-	stderrHandlerWithSource = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		AddSource: true,
+	stderrHandlerWithSource = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		AddSource:   true,
+		ReplaceAttr: replacer,
 	})
 
 	// sends logs to stdout
