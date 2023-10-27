@@ -1,15 +1,16 @@
 package main
 
 import (
-	"main/internal/logger"
 	"main/internal/railway"
 	"main/internal/schedule"
-	"main/internal/tools"
 	"os"
 	"time"
 
+	"github.com/brody192/logger"
+
+	"log/slog"
+
 	"github.com/go-co-op/gocron"
-	"golang.org/x/exp/slog"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	// parse schedule configuration strings from the environment with the given prefix
 	schedules, err := schedule.ParseFromEnv("SCHEDULE_")
 	if err != nil {
-		logger.Stderr.Error("error parsing schedules from environment", slog.String("err", tools.ErrStr(err)))
+		logger.Stderr.Error("error parsing schedules from environment", logger.ErrAttr(err))
 		os.Exit(1)
 	}
 
@@ -37,7 +38,7 @@ func main() {
 	for _, schedule := range schedules {
 		project, err := railway.Project(railwayClient, schedule.ProjectID)
 		if err != nil {
-			logger.Stderr.Error("failed retrieving project information", slog.String("err", tools.ErrStr(err)), slog.String("project_id", schedule.ProjectID))
+			logger.Stderr.Error("failed retrieving project information", logger.ErrAttr(err), slog.String("project_id", schedule.ProjectID))
 			os.Exit(1)
 		}
 
@@ -56,7 +57,7 @@ func main() {
 		// get the friendly service name, looking at just the service id can get very confusing
 		friendlyName, err := railwayClient.GetFriendlyName(jobDetails.ServiceID)
 		if err != nil {
-			logger.Stderr.Warn("error retrieving friendly service name", slog.String("err", tools.ErrStr(err)))
+			logger.Stderr.Warn("error retrieving friendly service name", logger.ErrAttr(err))
 		}
 
 		// default slog attributes
@@ -72,7 +73,7 @@ func main() {
 		// retrieve latest active or complete deployment from service
 		latestDeploymentID, err := railwayClient.GetLatestDeploymentID(jobDetails)
 		if err != nil {
-			slogAttr = append(slogAttr, slog.String("err", tools.ErrStr(err)))
+			slogAttr = append(slogAttr, logger.ErrAttr(err))
 			logger.Stderr.Error("error getting latest deployment for given service", slogAttr...)
 			return
 		}
@@ -82,14 +83,14 @@ func main() {
 		case schedule.ActionRedeploy:
 			_, err = railway.DeploymentRedeploy(railwayClient, latestDeploymentID)
 			if err != nil {
-				slogAttr = append(slogAttr, slog.String("err", tools.ErrStr(err)))
+				slogAttr = append(slogAttr, logger.ErrAttr(err))
 				logger.StderrWithSource.Error("error redeploying the given service", slogAttr...)
 				return
 			}
 		case schedule.ActionRestart:
 			_, err = railway.DeploymentRestart(railwayClient, latestDeploymentID)
 			if err != nil {
-				slogAttr = append(slogAttr, slog.String("err", tools.ErrStr(err)))
+				slogAttr = append(slogAttr, logger.ErrAttr(err))
 				logger.StderrWithSource.Error("error restarting the given service", slogAttr...)
 				return
 			}
@@ -110,7 +111,7 @@ func main() {
 		_, err := scheduler.Cron(job.Expression).Do(cronTask, job)
 		if err != nil {
 
-			logger.StderrWithSource.Error("error registering schedule with cron", slog.String("err", tools.ErrStr(err)))
+			logger.StderrWithSource.Error("error registering schedule with cron", logger.ErrAttr(err))
 			return
 		}
 	}

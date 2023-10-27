@@ -5,8 +5,8 @@ import (
 	"main/internal/schedule"
 	"net/http"
 
-	_ "github.com/Khan/genqlient/generate"
-	"github.com/Khan/genqlient/graphql"
+	_ "github.com/brody192/genqlient/generate"
+	"github.com/brody192/genqlient/graphql"
 	"golang.org/x/exp/slices"
 )
 

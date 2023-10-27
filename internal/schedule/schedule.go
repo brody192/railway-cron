@@ -32,6 +32,8 @@ func ParseFromEnv(EnvPrefix string) ([]Schedule, error) {
 	var schedules []Schedule
 
 	for _, env := range os.Environ() {
+		env = strings.TrimSpace(env)
+
 		if strings.HasPrefix(env, EnvPrefix) == false {
 			continue
 		}
@@ -39,13 +41,20 @@ func ParseFromEnv(EnvPrefix string) ([]Schedule, error) {
 		kv := strings.SplitN(env, "=", 2)
 
 		if len(kv) != 2 {
-			return nil, fmt.Errorf("environment key value pair: %s invalid", env)
+			return nil, fmt.Errorf("environment key value pair: %q invalid; expected k=v format", env)
 		}
 
-		value := kv[1]
+		value := strings.TrimSpace(kv[1])
 
 		if valueUnquoted, err := strconv.Unquote(value); err == nil {
 			value = valueUnquoted
+		}
+
+		// extra check to make sure the schedule string only contains k=v pairs
+		for _, param := range strings.Split(value, "&") {
+			if len(strings.SplitN(param, "=", 2)) != 2 {
+				return nil, fmt.Errorf("schedule key value pair: %q invalid; expected k=V format", param)
+			}
 		}
 
 		values, err := url.ParseQuery(value)
@@ -60,7 +69,7 @@ func ParseFromEnv(EnvPrefix string) ([]Schedule, error) {
 		}
 
 		if schedule.Action != ActionRestart && schedule.Action != ActionRedeploy {
-			return nil, fmt.Errorf("invalid action: %s", schedule.Action)
+			return nil, fmt.Errorf("invalid action: %q", schedule.Action)
 		}
 
 		schedule.Expression = strings.ToLower(schedule.Expression)
@@ -72,15 +81,15 @@ func ParseFromEnv(EnvPrefix string) ([]Schedule, error) {
 		}
 
 		if _, err := uuid.Parse(schedule.ProjectID); err != nil {
-			return nil, fmt.Errorf("projectID is not a valid UUID: %s", schedule.ProjectID)
+			return nil, fmt.Errorf("projectID is not a valid UUID: %q", schedule.ProjectID)
 		}
 
 		if _, err := uuid.Parse(schedule.EnvironmentID); err != nil {
-			return nil, fmt.Errorf("environmentID is not a valid UUID: %s", schedule.EnvironmentID)
+			return nil, fmt.Errorf("environmentID is not a valid UUID: %q", schedule.EnvironmentID)
 		}
 
 		if _, err := uuid.Parse(schedule.ServiceID); err != nil {
-			return nil, fmt.Errorf("serviceID is not a valid UUID: %s", schedule.ServiceID)
+			return nil, fmt.Errorf("serviceID is not a valid UUID: %q", schedule.ServiceID)
 		}
 
 		schedules = append(schedules, schedule)
