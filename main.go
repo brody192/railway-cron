@@ -28,6 +28,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	if len(schedules) == 0 {
+		logger.Stderr.Error("no schedules found")
+		logger.Stdout.Info("set at least one or more schedules with 'SCHEDULE_1', 'SCHEDULE_2', etc. variables")
+		os.Exit(1)
+	}
+
 	logger.Stdout.Info("parsed schedules from environment successfully",
 		slog.Int("found_schedules", len(schedules)),
 	)
@@ -35,18 +41,18 @@ func main() {
 	railwayClient := railway.NewAuthedClient(railwayToken)
 
 	// print schedules for viewing purposes
-	for _, schedule := range schedules {
-		project, err := railway.Project(railwayClient, schedule.ProjectID)
+	for i := range schedules {
+		project, err := railway.Project(railwayClient, schedules[i].ProjectID)
 		if err != nil {
-			logger.Stderr.Error("failed retrieving project information", logger.ErrAttr(err), slog.String("project_id", schedule.ProjectID))
+			logger.Stderr.Error("failed retrieving project information", logger.ErrAttr(err), slog.String("project_id", schedules[i].ProjectID))
 			os.Exit(1)
 		}
 
 		logger.Stdout.Info("found schedule",
-			slog.String("service_id", schedule.ServiceID),
+			slog.String("service_id", schedules[i].ServiceID),
 			slog.String("project_name", project.Project.Name),
-			slog.String("action", string(schedule.Action)),
-			slog.String("expression", schedule.Expression),
+			slog.String("action", string(schedules[i].Action)),
+			slog.String("expression", schedules[i].Expression),
 		)
 	}
 

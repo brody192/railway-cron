@@ -1,4 +1,4 @@
-FROM golang:1.21.3-alpine3.18 as builder
+FROM golang:1.22.0-alpine as builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN go mod download
 
 COPY . ./
 
-RUN go build -ldflags "-w -s -extldflags '-static'" -trimpath -a -o main
+RUN go build -ldflags "-w -s" -o main
 
 FROM gcr.io/distroless/static
 
