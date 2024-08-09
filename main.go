@@ -10,6 +10,8 @@ import (
 
 	"log/slog"
 
+	"main/internal/retry"
+
 	"github.com/go-co-op/gocron"
 )
 
@@ -39,6 +41,8 @@ func main() {
 	)
 
 	railwayClient := railway.NewAuthedClient(railwayToken)
+
+	backoffParams := retry.GetBackoffParams()
 
 	// print schedules for viewing purposes
 	for i := range schedules {
@@ -76,25 +80,45 @@ func main() {
 
 		logger.Stdout.Info("starting cron job", slogAttr...)
 
-		// retrieve latest active or complete deployment from service
-		latestDeploymentID, err := railwayClient.GetLatestDeploymentID(jobDetails)
+		var latestDeploymentID string
+		err = retry.RetryWithBackoff(
+			func() error {
+				var err error
+				latestDeploymentID, err = railwayClient.GetLatestDeploymentID(jobDetails)
+				return err
+			},
+			backoffParams,
+		)
+
 		if err != nil {
 			slogAttr = append(slogAttr, logger.ErrAttr(err))
-			logger.Stderr.Error("error getting latest deployment for given service", slogAttr...)
+			logger.Stderr.Error("error getting latest deployment for given service after retries", slogAttr...)
 			return
 		}
 
 		// run action depending on the action type
 		switch jobDetails.Action {
 		case schedule.ActionRedeploy:
-			_, err = railway.DeploymentRedeploy(railwayClient, latestDeploymentID)
+			retry.RetryWithBackoff(
+				func() error {
+					_, err = railway.DeploymentRedeploy(railwayClient, latestDeploymentID)
+					return err
+				},
+				backoffParams,
+			)
 			if err != nil {
 				slogAttr = append(slogAttr, logger.ErrAttr(err))
 				logger.StderrWithSource.Error("error redeploying the given service", slogAttr...)
 				return
 			}
 		case schedule.ActionRestart:
-			_, err = railway.DeploymentRestart(railwayClient, latestDeploymentID)
+			retry.RetryWithBackoff(
+				func() error {
+					_, err = railway.DeploymentRestart(railwayClient, latestDeploymentID)
+					return err
+				},
+				backoffParams,
+			)
 			if err != nil {
 				slogAttr = append(slogAttr, logger.ErrAttr(err))
 				logger.StderrWithSource.Error("error restarting the given service", slogAttr...)
