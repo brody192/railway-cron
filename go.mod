@@ -5,11 +5,11 @@ go 1.22
 require (
 	github.com/brody192/genqlient v0.0.1
 	github.com/brody192/logger v0.0.5
-	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/go-co-op/gocron v1.37.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/schema v1.2.1
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/sethvargo/go-retry v0.3.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 )
 

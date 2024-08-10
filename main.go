@@ -1,16 +1,18 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"time"
 
+	"main/internal/backoff"
 	"main/internal/railway"
-	"main/internal/retry"
 	"main/internal/schedule"
 
 	"github.com/brody192/logger"
 	"github.com/go-co-op/gocron"
+	"github.com/sethvargo/go-retry"
 )
 
 func main() {
@@ -40,7 +42,7 @@ func main() {
 
 	railwayClient := railway.NewAuthedClient(railwayToken)
 
-	backoffParams := retry.GetBackoffParams()
+	backoffParams := backoff.GetBackoffParams()
 
 	// print schedules for viewing purposes
 	for i := range schedules {
@@ -80,35 +82,47 @@ func main() {
 
 		var latestDeploymentID string
 
-		if err := retry.RetryWithBackoff(func() error {
-			var err error
+		if err := retry.Do(context.Background(), backoffParams, func(ctx context.Context) error {
 			latestDeploymentID, err = railwayClient.GetLatestDeploymentID(jobDetails)
-			return err
-		}, backoffParams); err != nil {
-			slogAttr = append(slogAttr, logger.ErrAttr(err))
-			logger.Stderr.Error("error getting latest deployment for given service after retries", slogAttr...)
-			return
+			if err != nil {
+				logger.Stderr.Error("error getting latest deployment for given service after retries", slogAttr...)
+
+				return retry.RetryableError(err)
+			}
+
+			return nil
+		}); err != nil {
+			logger.Stderr.Error("attempt duration reached, exiting")
+			os.Exit(1)
 		}
 
 		// run action depending on the action type
 		switch jobDetails.Action {
 		case schedule.ActionRedeploy:
-			if err := retry.RetryWithBackoff(func() error {
-				_, err = railway.DeploymentRedeploy(railwayClient, latestDeploymentID)
-				return err
-			}, backoffParams); err != nil {
-				slogAttr = append(slogAttr, logger.ErrAttr(err))
-				logger.StderrWithSource.Error("error redeploying the given service", slogAttr...)
-				return
+			if err := retry.Do(context.Background(), backoffParams, func(ctx context.Context) error {
+				if _, err := railway.DeploymentRedeploy(railwayClient, latestDeploymentID); err != nil {
+					logger.StderrWithSource.Error("error redeploying the given service", slogAttr...)
+
+					return retry.RetryableError(err)
+				}
+
+				return nil
+			}); err != nil {
+				logger.Stderr.Error("attempt duration reached, exiting")
+				os.Exit(1)
 			}
 		case schedule.ActionRestart:
-			if err := retry.RetryWithBackoff(func() error {
-				_, err = railway.DeploymentRestart(railwayClient, latestDeploymentID)
-				return err
-			}, backoffParams); err != nil {
-				slogAttr = append(slogAttr, logger.ErrAttr(err))
-				logger.StderrWithSource.Error("error restarting the given service", slogAttr...)
-				return
+			if err := retry.Do(context.Background(), backoffParams, func(ctx context.Context) error {
+				if _, err := railway.DeploymentRestart(railwayClient, latestDeploymentID); err != nil {
+					logger.StderrWithSource.Error("error restarting the given service", slogAttr...)
+
+					return retry.RetryableError(err)
+				}
+
+				return nil
+			}); err != nil {
+				logger.Stderr.Error("attempt duration reached, exiting")
+				os.Exit(1)
 			}
 		default:
 			slogAttr = append(slogAttr, slog.String("action", string(jobDetails.Action)))

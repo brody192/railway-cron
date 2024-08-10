@@ -1,4 +1,4 @@
-package retry
+package backoff
 
 import (
 	"log/slog"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/brody192/logger"
-	"github.com/cenkalti/backoff"
+	"github.com/sethvargo/go-retry"
 )
 
 // BackoffParams holds the parameters for the exponential backoff
@@ -21,7 +21,7 @@ type BackoffParams struct {
 
 // GetBackoffParams reads backoff parameters from environment variables
 // or returns default values if not set
-func GetBackoffParams() BackoffParams {
+func GetBackoffParams() retry.Backoff {
 	params := BackoffParams{
 		InitialInterval: time.Second,
 		MaxInterval:     30 * time.Second,
@@ -52,15 +52,9 @@ func GetBackoffParams() BackoffParams {
 		slog.Duration("max_elapsed_time", params.MaxElapsedTime),
 	)
 
-	return params
-}
+	b := retry.NewExponential(params.InitialInterval)
+	b = retry.WithCappedDuration(params.MaxInterval, b)
+	b = retry.WithMaxDuration(params.MaxElapsedTime, b)
 
-// RetryWithBackoff attempts to execute the given operation with exponential backoff
-func RetryWithBackoff(operation func() error, params BackoffParams) error {
-	backoffConfig := backoff.NewExponentialBackOff()
-	backoffConfig.InitialInterval = params.InitialInterval
-	backoffConfig.MaxInterval = params.MaxInterval
-	backoffConfig.MaxElapsedTime = params.MaxElapsedTime
-
-	return backoff.Retry(operation, backoffConfig)
+	return b
 }
