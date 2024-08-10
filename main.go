@@ -1,17 +1,15 @@
 package main
 
 import (
-	"main/internal/railway"
-	"main/internal/schedule"
+	"log/slog"
 	"os"
 	"time"
 
-	"github.com/brody192/logger"
-
-	"log/slog"
-
+	"main/internal/railway"
 	"main/internal/retry"
+	"main/internal/schedule"
 
+	"github.com/brody192/logger"
 	"github.com/go-co-op/gocron"
 )
 
@@ -81,16 +79,12 @@ func main() {
 		logger.Stdout.Info("starting cron job", slogAttr...)
 
 		var latestDeploymentID string
-		err = retry.RetryWithBackoff(
-			func() error {
-				var err error
-				latestDeploymentID, err = railwayClient.GetLatestDeploymentID(jobDetails)
-				return err
-			},
-			backoffParams,
-		)
 
-		if err != nil {
+		if err := retry.RetryWithBackoff(func() error {
+			var err error
+			latestDeploymentID, err = railwayClient.GetLatestDeploymentID(jobDetails)
+			return err
+		}, backoffParams); err != nil {
 			slogAttr = append(slogAttr, logger.ErrAttr(err))
 			logger.Stderr.Error("error getting latest deployment for given service after retries", slogAttr...)
 			return
@@ -99,27 +93,19 @@ func main() {
 		// run action depending on the action type
 		switch jobDetails.Action {
 		case schedule.ActionRedeploy:
-			retry.RetryWithBackoff(
-				func() error {
-					_, err = railway.DeploymentRedeploy(railwayClient, latestDeploymentID)
-					return err
-				},
-				backoffParams,
-			)
-			if err != nil {
+			if err := retry.RetryWithBackoff(func() error {
+				_, err = railway.DeploymentRedeploy(railwayClient, latestDeploymentID)
+				return err
+			}, backoffParams); err != nil {
 				slogAttr = append(slogAttr, logger.ErrAttr(err))
 				logger.StderrWithSource.Error("error redeploying the given service", slogAttr...)
 				return
 			}
 		case schedule.ActionRestart:
-			retry.RetryWithBackoff(
-				func() error {
-					_, err = railway.DeploymentRestart(railwayClient, latestDeploymentID)
-					return err
-				},
-				backoffParams,
-			)
-			if err != nil {
+			if err := retry.RetryWithBackoff(func() error {
+				_, err = railway.DeploymentRestart(railwayClient, latestDeploymentID)
+				return err
+			}, backoffParams); err != nil {
 				slogAttr = append(slogAttr, logger.ErrAttr(err))
 				logger.StderrWithSource.Error("error restarting the given service", slogAttr...)
 				return
@@ -138,9 +124,7 @@ func main() {
 
 	// register all scheduled jobs
 	for _, job := range schedules {
-		_, err := scheduler.Cron(job.Expression).Do(cronTask, job)
-		if err != nil {
-
+		if _, err := scheduler.Cron(job.Expression).Do(cronTask, job); err != nil {
 			logger.StderrWithSource.Error("error registering schedule with cron", logger.ErrAttr(err))
 			return
 		}
@@ -154,6 +138,7 @@ func main() {
 			slog.Int("scheduled_jobs", scheduledJobs),
 			slog.Int("registered_jobs", registeredJobs),
 		)
+
 		os.Exit(1)
 	}
 
