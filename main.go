@@ -92,8 +92,8 @@ func main() {
 
 			return nil
 		}); err != nil {
-			logger.Stderr.Error("attempt duration reached, exiting")
-			os.Exit(1)
+			logger.Stderr.Error("attempt duration reached, skipping")
+			return
 		}
 
 		// run action depending on the action type
@@ -108,8 +108,8 @@ func main() {
 
 				return nil
 			}); err != nil {
-				logger.Stderr.Error("attempt duration reached, exiting")
-				os.Exit(1)
+				logger.Stderr.Error("attempt duration reached, skipping")
+				return
 			}
 		case schedule.ActionRestart:
 			if err := retry.Do(context.Background(), backoffParams, func(ctx context.Context) error {
@@ -121,8 +121,8 @@ func main() {
 
 				return nil
 			}); err != nil {
-				logger.Stderr.Error("attempt duration reached, exiting")
-				os.Exit(1)
+				logger.Stderr.Error("attempt duration reached, skipping")
+				return
 			}
 		default:
 			slogAttr = append(slogAttr, slog.String("action", string(jobDetails.Action)))
