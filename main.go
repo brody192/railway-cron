@@ -64,35 +64,47 @@ func main() {
 
 	// cron job function that will be executed on the set schedules
 	cronTask := func(jobDetails schedule.Schedule) {
-		// get the friendly service name, looking at just the service id can get very confusing
-		friendlyName, err := railwayClient.GetFriendlyName(jobDetails.ServiceID)
-		if err != nil {
-			logger.Stderr.Warn("error retrieving friendly service name", logger.ErrAttr(err))
-		}
-
 		// default slog attributes
-		slogAttr := []any{
-			slog.String("service_name", friendlyName),
+		taskLogger := logger.Stdout.With(
 			slog.String("action", string(jobDetails.Action)),
 			slog.String("expression", jobDetails.Expression),
 			slog.String("service_id", jobDetails.ServiceID),
-		}
+		)
 
-		logger.Stdout.Info("starting cron job", slogAttr...)
-
-		var latestDeploymentID string
-
+		// get the friendly service name, looking at just the service id can get very confusing
+		var friendlyName string
 		if err := retry.Do(context.Background(), backoffParams, func(ctx context.Context) error {
-			latestDeploymentID, err = railwayClient.GetLatestDeploymentID(jobDetails)
+			friendlyName, err = railwayClient.GetFriendlyName(jobDetails.ServiceID)
 			if err != nil {
-				logger.Stderr.Error("error getting latest deployment for given service after retries", slogAttr...)
+				taskLogger.Error("error retrieving friendly service name", logger.ErrAttr(err))
 
 				return retry.RetryableError(err)
 			}
 
 			return nil
 		}); err != nil {
-			logger.Stderr.Error("attempt duration reached, skipping")
+			taskLogger.Error("get friendly name attempt reached, skipping")
+			return
+		}
+
+		// add the service name to the logging attributes when found
+		taskLogger = taskLogger.With(slog.String("service_name", friendlyName))
+
+		taskLogger.Info("starting cron job")
+
+		var latestDeploymentID string
+
+		if err := retry.Do(context.Background(), backoffParams, func(ctx context.Context) error {
+			latestDeploymentID, err = railwayClient.GetLatestDeploymentID(jobDetails)
+			if err != nil {
+				taskLogger.Error("error getting latest deployment for given service", logger.ErrAttr(err))
+
+				return retry.RetryableError(err)
+			}
+
+			return nil
+		}); err != nil {
+			taskLogger.Error("get latest deployment attempt duration reached, skipping")
 			return
 		}
 
@@ -101,36 +113,35 @@ func main() {
 		case schedule.ActionRedeploy:
 			if err := retry.Do(context.Background(), backoffParams, func(ctx context.Context) error {
 				if _, err := railway.DeploymentRedeploy(railwayClient, latestDeploymentID); err != nil {
-					logger.StderrWithSource.Error("error redeploying the given service", slogAttr...)
+					taskLogger.Error("error redeploying the given service", logger.ErrAttr(err))
 
 					return retry.RetryableError(err)
 				}
 
 				return nil
 			}); err != nil {
-				logger.Stderr.Error("attempt duration reached, skipping")
+				logger.Stderr.Error("redeploy attempt duration reached, skipping")
 				return
 			}
 		case schedule.ActionRestart:
 			if err := retry.Do(context.Background(), backoffParams, func(ctx context.Context) error {
 				if _, err := railway.DeploymentRestart(railwayClient, latestDeploymentID); err != nil {
-					logger.StderrWithSource.Error("error restarting the given service", slogAttr...)
+					taskLogger.Error("error restarting the given service", logger.ErrAttr(err))
 
 					return retry.RetryableError(err)
 				}
 
 				return nil
 			}); err != nil {
-				logger.Stderr.Error("attempt duration reached, skipping")
+				logger.Stderr.Error("restart attempt duration reached, skipping")
 				return
 			}
 		default:
-			slogAttr = append(slogAttr, slog.String("action", string(jobDetails.Action)))
-			logger.StderrWithSource.Error("invalid action", slogAttr...)
+			taskLogger.Error("invalid action")
 			return
 		}
 
-		logger.Stdout.Info("cron job completed successfully", slogAttr...)
+		taskLogger.Info("cron job completed successfully")
 	}
 
 	// create a new cron schedular in utc time
